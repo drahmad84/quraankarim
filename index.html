@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>القرآن الكريم الكامل | استماع · تلاوة · ختمة · راديو · مراسلة</title>
+
+    <!-- ✅ تسريع بدء التشغيل: فتح الاتصال مسبقاً بخوادم الصوت والنص -->
+    <link rel="preconnect" href="https://server7.mp3quran.net" crossorigin>
+    <link rel="preconnect" href="https://server8.mp3quran.net" crossorigin>
+    <link rel="preconnect" href="https://server10.mp3quran.net" crossorigin>
+    <link rel="preconnect" href="https://server14.mp3quran.net" crossorigin>
+    <link rel="preconnect" href="https://serverkw.quran-uni.com" crossorigin>
+    <link rel="preconnect" href="https://api.alquran.cloud" crossorigin>
+    <link rel="dns-prefetch" href="https://server7.mp3quran.net">
+    <link rel="dns-prefetch" href="https://server8.mp3quran.net">
+    <link rel="dns-prefetch" href="https://server10.mp3quran.net">
+    <link rel="dns-prefetch" href="https://server14.mp3quran.net">
+    <link rel="dns-prefetch" href="https://api.alquran.cloud">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         /* جميع الأنماط ثابتة كما كانت، ولم يتم تغيير أي منها باستثناء إضافة أنماط الأزرار الجديدة في النهاية */
@@ -1200,7 +1214,7 @@
                     <a href="https://play.google.com/store/apps/details?id=app4044892.hnu" target="_blank" rel="noopener noreferrer" class="share-app-link" style="margin:0;">
                         <i class="fab fa-google-play"></i> تحميل من متجر غوغل بلاي
                     </a>
-                    <a href="https://drahmad84.github.io/quraankarim/" target="_blank" rel="noopener noreferrer" class="share-app-link" style="margin:0;">
+                    <a href="https://alquraanalkarim.gt.tc/" target="_blank" rel="noopener noreferrer" class="share-app-link" style="margin:0;">
                         <i class="fas fa-globe"></i> تصفح التطبيق مباشرة
                     </a>
                 </div>
@@ -1390,10 +1404,12 @@
             let navMode = 'surah';
             let activeTab = 'listen';
             let audio = new Audio();
+            audio.preload = 'auto';   // ✅ تحميل مسبق كامل لتسريع بدء التشغيل
             let currentIdx = -1,
                 isPlaying = false,
                 dragging = false,
                 repeatMode = 'off';
+            let playToken = 0;        // ✅ لمنع تعارض الطلبات السريعة المتتالية
             let favSurahs = JSON.parse(localStorage.getItem('quranFavs') || '[]');
             let readSurahs = JSON.parse(localStorage.getItem('quranReadSurahs') || '[]');
             let lastReadAyah = JSON.parse(localStorage.getItem('quranLastReadAyah') || '{}');
@@ -1410,7 +1426,7 @@
             let currentRadioId = null;
             let radioPlaying = false;
 
-            const APP_LINK = 'https://drahmad84.github.io/quraankarim/';
+            const APP_LINK = 'https://alquraanalkarim.gt.tc/';
             const PLAY_STORE_LINK = 'https://play.google.com/store/apps/details?id=app4044892.hnu';
 
             function fmtTime(s) {
@@ -1428,8 +1444,11 @@
                 }
             }
 
+            // ✅ مسار سريع: لا نفتح الكاش إلا إذا كانت السورة محمّلة فعلاً
             async function getPlayableUrl(i) {
                 const url = getUrl(i);
+                const isDownloaded = downloadedSurahs[currentReciter] && downloadedSurahs[currentReciter][i];
+                if (!isDownloaded) return url;   // ← لا انتظار إطلاقاً
                 try {
                     const cache = await caches.open('quran-audio-v1');
                     const cached = await cache.match(url);
@@ -1742,7 +1761,7 @@
                 showSnack('<i class="fas fa-stop-circle"></i> تم إيقاف الراديو');
             }
 
-            // دوال التشغيل الأساسية
+            // ✅ التشغيل السريع: لا انتظار للكاش، وضبط المصدر فوراً
             async function playSurah(idx, name) {
                 if (isRadio) stopRadio();
                 if (currentIdx === idx && audio.src && !audio.paused) {
@@ -1751,17 +1770,27 @@
                     isPlaying = false;
                     return;
                 }
-                const url = await getPlayableUrl(idx);
-                audio.src = url;
+
+                const token = ++playToken;
                 currentIdx = idx;
                 $('playerLabel').innerHTML = '<i class="fas fa-music"></i> ' + name;
+
+                // إذا كانت السورة غير محمّلة → لا انتظار إطلاقاً (مسار متزامن)
+                const isDownloaded = downloadedSurahs[currentReciter] && downloadedSurahs[currentReciter][idx];
+                const url = isDownloaded ? await getPlayableUrl(idx) : getUrl(idx);
+
+                if (token !== playToken) return; // طلب أحدث تجاوز هذا الطلب
+
+                audio.src = url;
                 audio.load();
                 saveStateImmediate(name);
+
                 audio.play().then(() => {
                     $('btnPlay').innerHTML = '<i class="fas fa-pause"></i>';
                     isPlaying = true;
                     showSnack('<i class="fas fa-play"></i> ' + name);
                 }).catch(() => showSnack('<i class="fas fa-exclamation-triangle"></i> تعذر التشغيل'));
+
                 addToFrequent(idx);
                 if (saveInterval) clearInterval(saveInterval);
                 saveInterval = setInterval(() => {
@@ -2173,11 +2202,13 @@
                         if (surahNum) {
                             grid.classList.add('hidden');
                             reader.classList.add('visible');
-                            await displaySurahInContainer(reader, surahNum, surahName, () => {
+                            // ✅ 1) ابدأ الصوت فوراً (لا ننتظر تحميل النص)
+                            playSurah(surahNum - 1, surahName);
+                            // ✅ 2) ثم حمّل النص بالتوازي في الخلفية
+                            displaySurahInContainer(reader, surahNum, surahName, () => {
                                 reader.classList.remove('visible');
                                 grid.classList.remove('hidden');
                             });
-                            playSurah(surahNum - 1, surahName);
                         }
                     };
                     const downloadIcon = c.querySelector('.download-icon');
@@ -2233,11 +2264,12 @@
                             const reader = $('listenQuranReader');
                             grid.classList.add('hidden');
                             reader.classList.add('visible');
+                            // ✅ نفس التسريع هنا
+                            playSurah(id, surahNames[id]);
                             displaySurahInContainer(reader, id + 1, surahNames[id], () => {
                                 reader.classList.remove('visible');
                                 grid.classList.remove('hidden');
                             });
-                            playSurah(id, surahNames[id]);
                         } else displaySurah(id + 1, surahNames[id]);
                     };
                 });
