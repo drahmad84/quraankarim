@@ -583,7 +583,7 @@ min-height:2.4rem;transition:all var(--tr);
   <h1><i class="fas fa-quran"></i> القرآن الكريم الكامل</h1>
   <div class="tabs">
     <button class="tab on" data-tab="home"><i class="fas fa-home"></i> الرئيسية</button>
-    <button class="tab" data-tab="radio"><i class="fas fa-broadcast"></i> الراديو</button>
+    <button class="tab" data-tab="radio"><i class="fas fa-radio"></i> الراديو</button>
     <button class="tab" data-tab="more"><i class="fas fa-bars"></i> المزيد</button>
   </div>
 </div>
@@ -947,9 +947,9 @@ function renderGrid(){
     if(it.t==='s') html+='<span class="fav-s '+(fav?'on':'')+'"><i class="fas fa-star"></i></span>';
     html+='<div class="card-top"><span class="card-n">'+n+'</span><span class="card-t">'+it.name+'</span></div>';
     html+='<div class="card-a">';
-    html+='<span class="act lst" title="استماع">🎧</span>';
-    html+='<span class="act rd" title="قراءة">📖</span>';
-    if(it.t==='s') html+='<span class="act dl '+(dl?'done':'')+'" title="تحميل">'+(dl?'✅':'📥')+'</span>';
+    html+='<span class="act lst" title="استماع"><i class="fas fa-headphones"></i></span>';
+html+='<span class="act rd" title="قراءة"><i class="fas fa-book-open"></i></span>';
+if(it.t==='s') html+='<span class="act dl '+(dl?'done':'')+'" title="تحميل"><i class="fas fa-'+(dl?'check-circle':'download')+'"></i></span>';
     html+='</div>';
     c.innerHTML=html;
 
